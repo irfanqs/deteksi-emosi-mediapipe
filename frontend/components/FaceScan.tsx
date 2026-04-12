@@ -525,18 +525,22 @@ export default function FaceScan({ onReady, onError, onEmotionDetected, onSaveSu
 
                 {/* All Emotion Scores */}
                 <div className="space-y-4 flex-1 mb-6">
-                  {(Object.keys(displayEmotions) as EmotionType[]).map((emotion) => {
-                    const score = displayEmotions[emotion];
-                    const percentage = Math.round(score * 100);
-                    const isDominant = emotion === dominantMode;
+                  {[
+                    { label: 'Sangat Positif', score: displayEmotions.happy, color: EMOTION_COLORS.happy, isDominant: ['happy'].includes(dominantMode) },
+                    { label: 'Positif', score: displayEmotions.surprised, color: EMOTION_COLORS.surprised, isDominant: ['surprised'].includes(dominantMode) },
+                    { label: 'Netral', score: displayEmotions.neutral, color: EMOTION_COLORS.neutral, isDominant: ['neutral'].includes(dominantMode) },
+                    { label: 'Negatif', score: Math.min(1, displayEmotions.sad + displayEmotions.fearful), color: EMOTION_COLORS.sad, isDominant: ['sad', 'fearful'].includes(dominantMode) },
+                    { label: 'Sangat Negatif', score: Math.min(1, displayEmotions.angry + displayEmotions.disgusted), color: EMOTION_COLORS.angry, isDominant: ['angry', 'disgusted'].includes(dominantMode) },
+                  ].map((item) => {
+                    const percentage = Math.round(item.score * 100);
 
                     return (
-                      <div key={emotion} className="group relative">
+                      <div key={item.label} className="group relative">
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className={`text-sm transition-colors duration-300 ${isDominant ? 'font-bold text-slate-900' : 'font-medium text-slate-500 group-hover:text-slate-700'}`}>
-                            {EMOTION_LABELS[emotion]}
+                          <span className={`text-sm transition-colors duration-300 ${item.isDominant ? 'font-bold text-slate-900' : 'font-medium text-slate-500 group-hover:text-slate-700'}`}>
+                            {item.label}
                           </span>
-                          <span className={`text-sm transition-colors duration-300 ${isDominant ? 'font-extrabold text-slate-800' : 'font-semibold text-slate-400'}`}>
+                          <span className={`text-sm transition-colors duration-300 ${item.isDominant ? 'font-extrabold text-slate-800' : 'font-semibold text-slate-400'}`}>
                             {percentage}%
                           </span>
                         </div>
@@ -545,7 +549,7 @@ export default function FaceScan({ onReady, onError, onEmotionDetected, onSaveSu
                             className="h-full rounded-full transition-all duration-300 ease-out"
                             style={{
                               width: `${percentage}%`,
-                              backgroundColor: EMOTION_COLORS[emotion]
+                              backgroundColor: item.color
                             }}
                           />
                         </div>
