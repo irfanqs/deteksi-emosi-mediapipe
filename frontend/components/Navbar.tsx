@@ -21,13 +21,13 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16 sm:h-20">
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
-            <Link href="/" className="flex items-center gap-2 group">
+            <Link href="/" className="flex items-center gap-2 group cursor-pointer">
               <Image 
-                src="/images/logo/logo_emo-syah-removebg-preview.png" 
+                src="/images/logo/logo-emosyah 2.png" 
                 alt="Logo Emosyah" 
                 width={150} 
-                height={50} 
-                className="h-10 w-auto object-contain transform group-hover:scale-105 transition-transform"
+                height={70} 
+                className="h-20 sm:h-16 w-auto object-contain transform group-hover:scale-120 transition-transform"
                 priority
               />
             </Link>
