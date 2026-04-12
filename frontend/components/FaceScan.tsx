@@ -433,9 +433,67 @@ export default function FaceScan({ onReady, onError, onEmotionDetected, onSaveSu
           const fallbackEmotions: EmotionScores = { happy: 0, sad: 0, angry: 0, fearful: 0, disgusted: 0, surprised: 0, neutral: 1 };
           const displayEmotions = currentEmotions || fallbackEmotions;
           const showOverlay = !currentEmotions || noFaceDetected;
+          const dominantMode = getDominantEmotion(displayEmotions);
           
+          const getRecommendation = (emotion: EmotionType) => {
+            switch (emotion) {
+              case 'happy':
+                return {
+                  spectrum: 'Sangat Positif',
+                  diagnosis: 'Kesiapan Peningkatan Koping',
+                  action: 'Sharing: Motivasi untuk menebar kebaikan kepada sesama.',
+                  icon: '🌟',
+                  color: 'bg-amber-50 text-amber-900 border-amber-200',
+                  badge: 'bg-amber-100 text-amber-800'
+                };
+              case 'surprised':
+                return {
+                  spectrum: 'Positif',
+                  diagnosis: 'Kesiapan Peningkatan Konsep Diri',
+                  action: 'Edukasi: Mempertahankan pola hidup sehat dan manajemen waktu.',
+                  icon: '💡',
+                  color: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+                  badge: 'bg-emerald-100 text-emerald-800'
+                };
+              case 'neutral':
+                return {
+                  spectrum: 'Netral',
+                  diagnosis: 'Pemeliharaan Kesehatan Tidak Efektif (Risiko)',
+                  action: 'Aktivitas Fisik: Peregangan ringan dan hidrasi (minum air putih).',
+                  icon: '💧',
+                  color: 'bg-slate-50 text-slate-800 border-slate-200',
+                  badge: 'bg-slate-200 text-slate-700'
+                };
+              case 'sad':
+              case 'fearful':
+                return {
+                  spectrum: 'Negatif',
+                  diagnosis: 'Ansietas / Duka Cita',
+                  action: 'Relaksasi: Teknik nafas dalam.',
+                  icon: '😮‍💨',
+                  color: 'bg-blue-50 text-blue-900 border-blue-200',
+                  badge: 'bg-blue-100 text-blue-800'
+                };
+              case 'angry':
+              case 'disgusted':
+                return {
+                  spectrum: 'Sangat Negatif',
+                  diagnosis: 'Risiko Perilaku Kekerasan / Keputusasaan',
+                  action: 'Manajemen Marah: Mengubah posisi tubuh, atau konsultasi ahli.',
+                  icon: '🛑',
+                  color: 'bg-rose-50 text-rose-900 border-rose-200',
+                  badge: 'bg-rose-100 text-rose-800'
+                };
+              default:
+                return null;
+            }
+          };
+
+          const recommendation = getRecommendation(dominantMode);
+
           return (
-            <div className="relative w-full flex-1 flex flex-col">
+            <div className="relative w-full flex flex-col gap-4">
+              {/* Overlay for face not found */}
               {showOverlay && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[3px] rounded-2xl transition-all duration-300">
                   {noFaceDetected && isDetecting ? (
@@ -458,19 +516,19 @@ export default function FaceScan({ onReady, onError, onEmotionDetected, onSaveSu
                 </h3>
 
                 {/* Dominant Emotion */}
-                <div className="mb-6 p-4 rounded-xl border transition-colors duration-300" style={{ backgroundColor: `${EMOTION_COLORS[getDominantEmotion(displayEmotions)]}10`, borderColor: `${EMOTION_COLORS[getDominantEmotion(displayEmotions)]}30` }}>
+                <div className="mb-6 p-4 rounded-xl border transition-colors duration-300" style={{ backgroundColor: `${EMOTION_COLORS[dominantMode]}10`, borderColor: `${EMOTION_COLORS[dominantMode]}30` }}>
                   <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Emosi Dominan</div>
-                  <div className="text-3xl font-extrabold capitalize transition-colors duration-300" style={{ color: EMOTION_COLORS[getDominantEmotion(displayEmotions)] }}>
-                    {EMOTION_LABELS[getDominantEmotion(displayEmotions)]}
+                  <div className="text-3xl font-extrabold capitalize transition-colors duration-300" style={{ color: EMOTION_COLORS[dominantMode] }}>
+                    {EMOTION_LABELS[dominantMode]}
                   </div>
                 </div>
 
                 {/* All Emotion Scores */}
-                <div className="space-y-4 flex-1">
+                <div className="space-y-4 flex-1 mb-6">
                   {(Object.keys(displayEmotions) as EmotionType[]).map((emotion) => {
                     const score = displayEmotions[emotion];
                     const percentage = Math.round(score * 100);
-                    const isDominant = emotion === getDominantEmotion(displayEmotions);
+                    const isDominant = emotion === dominantMode;
 
                     return (
                       <div key={emotion} className="group relative">
@@ -495,6 +553,30 @@ export default function FaceScan({ onReady, onError, onEmotionDetected, onSaveSu
                     );
                   })}
                 </div>
+
+                {/* Clinical Recommendations */}
+                {recommendation && (
+                  <div className={`p-4 rounded-xl border transition-all duration-300 ${recommendation.color}`}>
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="font-bold flex items-center gap-2">
+                        <span>{recommendation.icon}</span> Rekomendasi Klinis
+                      </h4>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${recommendation.badge}`}>
+                        {recommendation.spectrum}
+                      </span>
+                    </div>
+                    
+                    <div className="mb-2">
+                      <div className="text-xs font-bold uppercase tracking-wider opacity-70 mb-0.5">Diagnosa Keperawatan (SDKI)</div>
+                      <div className="text-sm font-semibold">{recommendation.diagnosis}</div>
+                    </div>
+                    
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-wider opacity-70 mb-0.5">Tindakan Kesehatan (Klinis/SIKI)</div>
+                      <div className="text-sm font-semibold">{recommendation.action}</div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Save Button */}
                 {!saveSuccess && (
