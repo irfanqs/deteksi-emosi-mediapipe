@@ -15,6 +15,7 @@ import * as faceapi from 'face-api.js';
 import { initializeFaceApi, FaceApiInitializationError, getDefaultFaceDetectorOptions } from '@/lib/faceApi';
 import { EmotionScores, EmotionType, EMOTION_LABELS, EMOTION_COLORS, CreateEmotionEntryRequest, EmotionEntry } from '@/types/emotion.types';
 import apiClient from '@/lib/api-client';
+import { useRouter } from 'next/navigation';
 
 type PermissionState = 'prompt' | 'granted' | 'denied' | 'error';
 
@@ -40,6 +41,7 @@ export default function FaceScan({ onReady, onError, onEmotionDetected, onSaveSu
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const router = useRouter();
 
   // Initialize face-api.js models
   useEffect(() => {
@@ -315,8 +317,12 @@ export default function FaceScan({ onReady, onError, onEmotionDetected, onSaveSu
       setSaveSuccess(true);
       setIsSaving(false);
 
-      // Notify parent component
-      onSaveSuccess?.(response.data);
+      // Notify parent component or redirect
+      if (onSaveSuccess) {
+        onSaveSuccess(response.data);
+      } else {
+        router.push(`/journal?id=${response.data.id}`);
+      }
     } catch (err) {
       console.error('Failed to save emotion entry:', err);
       

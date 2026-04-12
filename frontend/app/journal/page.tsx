@@ -7,15 +7,18 @@
  * In production, this would be integrated with the emotion entry flow.
  */
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import MoodJournal from '@/components/MoodJournal';
 import { JournalData } from '@/types/journal.types';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
-export default function JournalPage() {
+function JournalContent() {
   const [savedJournal, setSavedJournal] = useState<JournalData | null>(null);
+  const searchParams = useSearchParams();
   
-  // Example emotion entry ID - in production, this would come from the emotion scan flow
-  const exampleEmotionEntryId = 'example-emotion-entry-id';
+  // Real ID fetched directly from the emotion scan flow or URL
+  const emotionEntryId = searchParams.get('id');
 
   const handleSaveSuccess = (journal: JournalData) => {
     console.log('Journal saved successfully:', journal);
@@ -37,11 +40,21 @@ export default function JournalPage() {
         </div>
 
         {!savedJournal ? (
-          <MoodJournal
-            emotionEntryId={exampleEmotionEntryId}
-            onSaveSuccess={handleSaveSuccess}
-            onCancel={handleCancel}
-          />
+          emotionEntryId ? (
+            <MoodJournal
+              emotionEntryId={emotionEntryId}
+              onSaveSuccess={handleSaveSuccess}
+              onCancel={handleCancel}
+            />
+          ) : (
+            <div className="bg-red-50 p-6 rounded-lg text-center max-w-2xl mx-auto border border-red-200">
+              <h3 className="text-xl font-bold text-red-800 mb-2">Tidak Ada Data Emosi Ditemukan</h3>
+              <p className="text-red-700 mb-4">Harap lakukan pemindaian wajah terlebih dahulu untuk membuat jurnal berdasarkan emosi Anda saat ini.</p>
+              <Link href="/" className="inline-block bg-white text-red-700 font-medium px-4 py-2 rounded shadow hover:bg-red-50 transition">
+                Kembali ke Beranda
+              </Link>
+            </div>
+          )
         ) : (
           <div className="max-w-2xl mx-auto p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
             <div className="flex items-start gap-3 mb-4">
@@ -92,12 +105,13 @@ export default function JournalPage() {
                   )}
                 </div>
 
-                <button
+                <Link
+                  href="/"
+                  className="mt-6 inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
                   onClick={() => setSavedJournal(null)}
-                  className="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
                 >
-                  Buat Entri Lainnya
-                </button>
+                  Buat Pemindaian Baru
+                </Link>
               </div>
             </div>
           </div>
@@ -105,4 +119,12 @@ export default function JournalPage() {
       </div>
     </div>
   );
+}
+
+export default function JournalPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Memuat...</div>}>
+      <JournalContent />
+    </Suspense>
+  )
 }

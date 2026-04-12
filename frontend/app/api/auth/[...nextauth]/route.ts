@@ -16,8 +16,9 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Call backend API to authenticate or create user
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+          // Use 127.0.0.1 explicitly to avoid Node IPv6 localhost resolution mismatch issues
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('localhost', '127.0.0.1') || 'http://127.0.0.1:3001';
+          const response = await fetch(`${apiUrl}/api/auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
