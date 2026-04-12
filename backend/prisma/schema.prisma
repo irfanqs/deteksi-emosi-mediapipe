@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  emotionEntries            EmotionEntry[]
+  journals                  Journal[]
+  goals                     Goal[]
+  streaks                   Streak[]
+  recommendationCompletions RecommendationCompletion[]
+
+  @@map("users")
+}
+
+// EmotionEntry Model
+model EmotionEntry {
+  id              String @id @default(uuid())
+  userId          String
+  dominantEmotion String // 'happy' | 'sad' | 'angry' | 'fearful' | 'disgusted' | 'surprised' | 'neutral'
+
+  // Emotion scores (0-1 range) - validated at application level
+  happyScore     Float
+  sadScore       Float
+  angryScore     Float
+  fearfulScore   Float
+  disgustedScore Float
+  surprisedScore Float
+  neutralScore   Float
+
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journal Journal?
+
+  @@index([userId, timestamp])
+  @@map("emotion_entries")
+}
+
+// Journal Model
+model Journal {
+  id             String   @id @default(uuid())
+  emotionEntryId String   @unique
+  userId         String
+  textContent    String?  @db.Text
+  voiceNoteUrl   String?
+  photoUrl       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  emotionEntry EmotionEntry @relation(fields: [emotionEntryId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("journals")
+}
+
+// Goal Model
+model Goal {
+  id              String   @id @default(uuid())
+  userId          String
+  targetEmotion   String // Target emotion to achieve
+  targetFrequency Int // Times per week - must be positive, validated at application level
+  currentProgress Int      @default(0) // Non-negative, validated at application level
+  startDate       DateTime
+  endDate         DateTime
+  reminderEnabled Boolean  @default(false)
+  reminderTime    String? // HH:MM format
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("goals")
+}
+
+// Streak Model
+model Streak {
+  id            String   @id @default(uuid())
+  userId        String
+  currentStreak Int      @default(0) // Non-negative, validated at application level
+  longestStreak Int      @default(0) // Non-negative, validated at application level
+  lastCheckIn   DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("streaks")
+}
+
+// RecommendationCompletion Model
+model RecommendationCompletion {
+  id                 String   @id @default(uuid())
+  userId             String
+  recommendationType String // 'meditation' | 'exercise' | 'journaling' | 'breathing' | 'music' | 'article'
+  recommendationId   String // External ID or title
+  completedAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completedAt])
+  @@map("recommendation_completions")
+}
