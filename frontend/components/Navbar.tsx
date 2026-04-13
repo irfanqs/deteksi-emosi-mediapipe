@@ -14,12 +14,12 @@ export default function Navbar() {
     { href: '/', label: 'Beranda' },
     { href: '/dashboard', label: 'Dasbor' },
     { href: '/journal', label: 'Jurnal' },
-  ];
+  ];  
 
   return (
     <nav className="fixed w-full z-50 top-0 left-0 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 sm:h-20">
+        <div className="flex justify-between items-center h-20 sm:h-24">
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
             <Link href="/" className="flex items-center gap-2 group cursor-pointer">
@@ -28,7 +28,7 @@ export default function Navbar() {
                 alt="Logo Emosyah" 
                 width={150} 
                 height={70} 
-                className="h-20 sm:h-16 w-auto object-contain transform group-hover:scale-120 transition-transform"
+                className="h-16 sm:h-20 w-auto object-contain transform group-hover:scale-105 transition-transform"
                 priority
               />
             </Link>

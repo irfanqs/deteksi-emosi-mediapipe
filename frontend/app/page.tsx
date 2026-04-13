@@ -108,9 +108,10 @@ export default function Home() {
         </div>
       </section>
       
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-10 md:py-16 text-center text-slate-500">
-        <p className="flex items-center justify-center gap-2 text-lg font-medium">Dibuat dengan <span className="text-red-500 animate-pulse text-xl">❤️</span> untuk kesehatan mental yang lebih baik.</p>
+      <footer className="w-full py-8 text-slate-500 text-center border-t border-slate-100 bg-white">
+        <p className="text-sm sm:text-lg font-medium px-4 leading-relaxed">
+          Dibuat dengan <span className="inline-block text-red-500 animate-pulse text-xl mx-1 align-middle">❤️</span> untuk kesehatan mental yang lebih baik.
+        </p>
       </footer>
     </main>
   );
