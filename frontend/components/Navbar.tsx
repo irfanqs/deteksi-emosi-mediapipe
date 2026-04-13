@@ -52,7 +52,7 @@ export default function Navbar() {
               href="/journal"
               className="px-6 py-2.5 bg-gradient-to-r from-violet-600 hover:from-violet-500 to-fuchsia-600 hover:to-fuchsia-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl hover:shadow-violet-500/30 transition-all transform hover:-translate-y-0.5"
             >
-              Mulai Jurnal
+              Lihat Jurnal
             </Link>
           </div>
 
@@ -96,7 +96,7 @@ export default function Navbar() {
             onClick={() => setIsOpen(false)}
             className="block mt-4 px-4 py-3 text-center text-base font-medium bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl shadow-md active:scale-95 transition-transform"
           >
-            Mulai Jurnal
+            Lihat Jurnal
           </Link>
         </div>
       </div>

@@ -1,19 +1,19 @@
 'use client';
 
 /**
- * FaceScan Component
- * 
- * Performs emotion detection via webcam using face-api.js.
- * Handles camera permissions, video streaming, real-time emotion detection,
- * saving emotion entries, and resource cleanup.
- * 
- * Requirements: 1.1, 1.3, 1.4, 1.5, 1.6, 1.9, 2.1, 11.1, 11.3
+ * FaceScan Component — MediaPipe Face Landmarker
+ * Detects 52 facial muscle blendshapes in real-time, fully local in browser.
  */
 
-import { useEffect, useRef, useState } from 'react';
-import * as faceapi from 'face-api.js';
-import { initializeFaceApi, FaceApiInitializationError, getDefaultFaceDetectorOptions } from '@/lib/faceApi';
-import { EmotionScores, EmotionType, EMOTION_LABELS, EMOTION_COLORS, CreateEmotionEntryRequest, EmotionEntry } from '@/types/emotion.types';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  EmotionScores,
+  EmotionType,
+  EMOTION_LABELS,
+  EMOTION_COLORS,
+  CreateEmotionEntryRequest,
+  EmotionEntry,
+} from '@/types/emotion.types';
 import apiClient from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
 
@@ -26,603 +26,538 @@ interface FaceScanProps {
   onSaveSuccess?: (entry: EmotionEntry) => void;
 }
 
-export default function FaceScan({ onReady, onError, onEmotionDetected, onSaveSuccess }: FaceScanProps) {
+// ── Blendshape helpers ──────────────────────────────────────────────────────
+
+function blendshapesToEmotions(
+  categories: { categoryName: string; score: number }[]
+): EmotionScores {
+  const g = (name: string) =>
+    categories.find((c) => c.categoryName === name)?.score ?? 0;
+
+  const smileL = g('mouthSmileLeft');
+  const smileR = g('mouthSmileRight');
+  const cheekL = g('cheekSquintLeft');
+  const cheekR = g('cheekSquintRight');
+  const eyeSquintL = g('eyeSquintLeft');
+  const eyeSquintR = g('eyeSquintRight');
+
+  const frownL = g('mouthFrownLeft');
+  const frownR = g('mouthFrownRight');
+  const browInner = g('browInnerUp');
+  const pucker = g('mouthPucker');
+
+  const browDownL = g('browDownLeft');
+  const browDownR = g('browDownRight');
+  const sneerL = g('noseSneerLeft');
+  const sneerR = g('noseSneerRight');
+
+  const eyeWideL = g('eyeWideLeft');
+  const eyeWideR = g('eyeWideRight');
+  const jawOpen = g('jawOpen');
+  const mouthOpen = g('mouthOpen');
+
+  const lowerDownL = g('mouthLowerDownLeft');
+  const lowerDownR = g('mouthLowerDownRight');
+  const rollLower = g('mouthRollLower');
+
+  const happy = Math.min(
+    1,
+    (smileL + smileR) * 0.4 + (cheekL + cheekR) * 0.3 + (eyeSquintL + eyeSquintR) * 0.3
+  );
+  const sad = Math.min(
+    1,
+    (frownL + frownR) * 0.45 + browInner * 0.35 + pucker * 0.2
+  );
+  const angry = Math.min(
+    1,
+    (browDownL + browDownR) * 0.5 + (sneerL + sneerR) * 0.5
+  );
+  const eyeWide = (eyeWideL + eyeWideR) / 2;
+  const fearful = Math.min(1, eyeWide * 0.5 + mouthOpen * 0.3 + (1 - happy) * 0.2);
+  const surprised = Math.min(1, eyeWide * 0.4 + jawOpen * 0.4 + mouthOpen * 0.2);
+  const disgusted = Math.min(
+    1,
+    (lowerDownL + lowerDownR) * 0.4 + rollLower * 0.3 + (sneerL + sneerR) * 0.3
+  );
+
+  const raw = { happy, sad, angry, fearful, surprised, disgusted };
+  const total = Object.values(raw).reduce((a, b) => a + b, 0) || 0.001;
+  const norm = Object.fromEntries(
+    Object.entries(raw).map(([k, v]) => [k, v / total])
+  ) as Omit<EmotionScores, 'neutral'>;
+
+  const maxRaw = Math.max(...Object.values(raw));
+  const neutral = Math.max(0, 1 - maxRaw * 1.5);
+  const totalFinal =
+    Object.values(norm).reduce((a, b) => a + b, 0) + neutral;
+
+  return {
+    happy: norm.happy / totalFinal,
+    sad: norm.sad / totalFinal,
+    angry: norm.angry / totalFinal,
+    fearful: norm.fearful / totalFinal,
+    surprised: norm.surprised / totalFinal,
+    disgusted: norm.disgusted / totalFinal,
+    neutral: neutral / totalFinal,
+  };
+}
+
+function getDominantEmotion(e: EmotionScores): EmotionType {
+  return (Object.keys(e) as EmotionType[]).reduce((a, b) =>
+    e[a] > e[b] ? a : b
+  );
+}
+
+function getRecommendation(emotion: EmotionType) {
+  switch (emotion) {
+    case 'happy':
+      return {
+        spectrum: 'Sangat Positif',
+        diagnosis: 'Kesiapan Peningkatan Koping',
+        action: 'Sharing: Motivasi untuk menebar kebaikan kepada sesama.',
+        icon: '🌟',
+        color: 'bg-amber-50 text-amber-900 border-amber-200',
+        badge: 'bg-amber-100 text-amber-800',
+      };
+    case 'surprised':
+      return {
+        spectrum: 'Positif',
+        diagnosis: 'Kesiapan Peningkatan Konsep Diri',
+        action: 'Edukasi: Mempertahankan pola hidup sehat dan manajemen waktu.',
+        icon: '💡',
+        color: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+        badge: 'bg-emerald-100 text-emerald-800',
+      };
+    case 'neutral':
+      return {
+        spectrum: 'Netral',
+        diagnosis: 'Pemeliharaan Kesehatan Tidak Efektif (Risiko)',
+        action: 'Aktivitas Fisik: Peregangan ringan dan hidrasi (minum air putih).',
+        icon: '💧',
+        color: 'bg-slate-50 text-slate-800 border-slate-200',
+        badge: 'bg-slate-200 text-slate-700',
+      };
+    case 'sad':
+    case 'fearful':
+      return {
+        spectrum: 'Negatif',
+        diagnosis: 'Ansietas / Duka Cita',
+        action: 'Relaksasi: Teknik nafas dalam.',
+        icon: '😮‍💨',
+        color: 'bg-blue-50 text-blue-900 border-blue-200',
+        badge: 'bg-blue-100 text-blue-800',
+      };
+    case 'angry':
+    case 'disgusted':
+      return {
+        spectrum: 'Sangat Negatif',
+        diagnosis: 'Risiko Perilaku Kekerasan / Keputusasaan',
+        action: 'Manajemen Marah: Mengubah posisi tubuh, atau konsultasi ahli.',
+        icon: '🛑',
+        color: 'bg-rose-50 text-rose-900 border-rose-200',
+        badge: 'bg-rose-100 text-rose-800',
+      };
+    default:
+      return null;
+  }
+}
+
+// ── Component ───────────────────────────────────────────────────────────────
+
+export default function FaceScan({
+  onReady,
+  onError,
+  onEmotionDetected,
+  onSaveSuccess,
+}: FaceScanProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const [permissionState, setPermissionState] = useState<PermissionState>('prompt');
-  const [isInitializing, setIsInitializing] = useState(false);
+  const landmarkerRef = useRef<any>(null);
+  const rafRef = useRef<number | null>(null);
+  const runningRef = useRef(false); // controls the detection loop
+  const router = useRouter();
+
+  const [status, setStatus] = useState<
+    'idle' | 'loading_model' | 'ready' | 'camera_starting' | 'detecting' | 'error'
+  >('idle');
+  const [loadingStep, setLoadingStep] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [isDetecting, setIsDetecting] = useState(false);
+  const [permissionState, setPermissionState] = useState<PermissionState>('prompt');
   const [currentEmotions, setCurrentEmotions] = useState<EmotionScores | null>(null);
   const [noFaceDetected, setNoFaceDetected] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const router = useRouter();
 
-  // Initialize face-api.js models
+  // ── Step 1: Load MediaPipe model on mount ──────────────────────────────
   useEffect(() => {
-    let mounted = true;
+    let cancelled = false;
 
-    const loadModels = async () => {
+    async function loadModel() {
       try {
-        setIsInitializing(true);
-        await initializeFaceApi();
-        
-        if (mounted) {
-          setModelsLoaded(true);
-          setIsInitializing(false);
-        }
-      } catch (err) {
-        if (mounted) {
-          const errorMessage = err instanceof FaceApiInitializationError
-            ? err.message
-            : 'Failed to initialize face detection models';
-          
-          setError(errorMessage);
-          setIsInitializing(false);
-          onError?.(err instanceof Error ? err : new Error(errorMessage));
-        }
-      }
-    };
+        setStatus('loading_model');
+        setLoadingStep('Mengimpor library MediaPipe...');
 
-    loadModels();
+        const { FaceLandmarker, FilesetResolver } =
+          await import('@mediapipe/tasks-vision');
 
-    return () => {
-      mounted = false;
-    };
-  }, [onError]);
+        if (cancelled) return;
+        setLoadingStep('Mengunduh model Face Landmarker (±30MB, sekali saja)...');
 
-  // Request camera permission and start video stream
-  useEffect(() => {
-    if (!modelsLoaded) return;
+        const vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+        );
 
-    let mounted = true;
+        if (cancelled) return;
+        setLoadingStep('Menyiapkan model AI...');
 
-    const startCamera = async () => {
-      try {
-        // Request camera permission
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            facingMode: 'user'
+        const landmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+            delegate: 'CPU',
           },
-          audio: false
+          outputFaceBlendshapes: true,
+          runningMode: 'VIDEO',
+          numFaces: 1,
         });
 
-        if (!mounted) {
-          // Component unmounted during async operation, cleanup
-          stream.getTracks().forEach(track => track.stop());
-          return;
-        }
-
-        // Store stream reference for cleanup
-        streamRef.current = stream;
-
-        // Attach stream to video element
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-
-        setPermissionState('granted');
+        if (cancelled) return;
+        landmarkerRef.current = landmarker;
+        setLoadingStep('');
+        setStatus('ready');
         onReady?.();
-      } catch (err) {
-        if (!mounted) return;
-
-        // Handle permission denied or other errors
-        if (err instanceof Error) {
-          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            setPermissionState('denied');
-            setError('Camera access denied. Please grant camera permission to use emotion detection.');
-          } else if (err.name === 'NotFoundError') {
-            setPermissionState('error');
-            setError('No camera found. Please connect a camera to use emotion detection.');
-          } else {
-            setPermissionState('error');
-            setError(`Camera error: ${err.message}`);
-          }
-          onError?.(err);
-        }
+      } catch (err: any) {
+        if (cancelled) return;
+        console.error('[MediaPipe] Load error:', err);
+        setError(
+          `Gagal memuat model: ${err?.message ?? err}. Cek koneksi internet lalu refresh.`
+        );
+        setStatus('error');
+        onError?.(err);
       }
-    };
-
-    startCamera();
-
-    return () => {
-      mounted = false;
-    };
-  }, [modelsLoaded, onReady, onError]);
-
-  // Emotion detection function
-  const detectEmotions = async (): Promise<EmotionScores | null> => {
-    if (!videoRef.current || !modelsLoaded) {
-      return null;
     }
 
+    loadModel();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Step 2: Start camera ───────────────────────────────────────────────
+  const startCamera = useCallback(async () => {
     try {
-      // Detect single face with TinyFaceDetector and expressions
-      const detection = await faceapi
-        .detectSingleFace(videoRef.current, getDefaultFaceDetectorOptions())
-        .withFaceExpressions();
+      setStatus('camera_starting');
+      setError(null);
 
-      // No face detected
-      if (!detection) {
-        return null;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+
+      const video = videoRef.current!;
+      video.srcObject = stream;
+
+      await new Promise<void>((resolve, reject) => {
+        video.onloadeddata = () => resolve();
+        video.onerror = reject;
+        video.play().catch(reject);
+      });
+
+      setPermissionState('granted');
+      setStatus('detecting');
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError') {
+        setPermissionState('denied');
+        setError('Izin kamera ditolak. Klik ikon kamera di address bar lalu izinkan.');
+      } else {
+        setPermissionState('error');
+        setError('Gagal membuka kamera: ' + (err?.message ?? err));
       }
-
-      // Extract emotion scores from face-api.js expressions
-      const expressions = detection.expressions;
-      
-      const emotionScores: EmotionScores = {
-        happy: expressions.happy,
-        sad: expressions.sad,
-        angry: expressions.angry,
-        fearful: expressions.fearful,
-        disgusted: expressions.disgusted,
-        surprised: expressions.surprised,
-        neutral: expressions.neutral
-      };
-
-      return emotionScores;
-    } catch (err) {
-      console.error('Emotion detection error:', err);
-      return null;
+      setStatus('ready');
     }
-  };
+  }, []);
 
-  // Start continuous emotion detection loop (every 100ms)
+  // ── Step 3: Detection loop (runs when status === 'detecting') ──────────
   useEffect(() => {
-    if (permissionState !== 'granted' || !modelsLoaded) {
-      return;
-    }
+    if (status !== 'detecting') return;
 
-    // Wait for video to be ready
-    const video = videoRef.current;
-    if (!video) return;
+    runningRef.current = true;
 
-    const startDetection = () => {
-      setIsDetecting(true);
+    function loop() {
+      if (!runningRef.current) return;
 
-      // Detection loop - runs every 100ms
-      detectionIntervalRef.current = setInterval(async () => {
-        const emotions = await detectEmotions();
+      const video = videoRef.current;
+      const landmarker = landmarkerRef.current;
 
-        if (emotions) {
-          // Face detected - update emotions
-          setCurrentEmotions(emotions);
-          setNoFaceDetected(false);
-          onEmotionDetected?.(emotions);
-        } else {
-          // No face detected
-          setNoFaceDetected(true);
+      if (video && landmarker && video.readyState >= 2 && !video.paused) {
+        try {
+          const results = landmarker.detectForVideo(video, performance.now());
+          const shapes = results?.faceBlendshapes?.[0]?.categories;
+
+          if (shapes && shapes.length > 0) {
+            const emotions = blendshapesToEmotions(shapes);
+            setCurrentEmotions(emotions);
+            setNoFaceDetected(false);
+            onEmotionDetected?.(emotions);
+          } else {
+            setNoFaceDetected(true);
+          }
+        } catch (e) {
+          // skip frame silently
         }
-      }, 100);
-    };
+      }
 
-    // Start detection when video is playing
-    if (video.readyState >= 2) {
-      // Video is ready
-      startDetection();
-    } else {
-      // Wait for video to be ready
-      video.addEventListener('loadeddata', startDetection);
+      rafRef.current = requestAnimationFrame(loop);
     }
 
-    return () => {
-      // Cleanup detection loop
-      if (detectionIntervalRef.current) {
-        clearInterval(detectionIntervalRef.current);
-        detectionIntervalRef.current = null;
-      }
-      setIsDetecting(false);
-      video?.removeEventListener('loadeddata', startDetection);
-    };
-  }, [permissionState, modelsLoaded, onEmotionDetected]);
+    rafRef.current = requestAnimationFrame(loop);
 
-  // Cleanup: Release camera resources on unmount
+    return () => {
+      runningRef.current = false;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [status, onEmotionDetected]);
+
+  // ── Cleanup on unmount ─────────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => {
-          track.stop();
-        });
-        streamRef.current = null;
-      }
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-
-      if (detectionIntervalRef.current) {
-        clearInterval(detectionIntervalRef.current);
-        detectionIntervalRef.current = null;
-      }
+      runningRef.current = false;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
-  // Calculate dominant emotion
-  const getDominantEmotion = (emotions: EmotionScores): EmotionType => {
-    let maxEmotion: EmotionType = 'neutral';
-    let maxScore = 0;
-
-    (Object.keys(emotions) as EmotionType[]).forEach((emotion) => {
-      if (emotions[emotion] > maxScore) {
-        maxScore = emotions[emotion];
-        maxEmotion = emotion;
-      }
-    });
-
-    return maxEmotion;
-  };
-
-  // Stop detection loop
-  const stopDetection = () => {
-    if (detectionIntervalRef.current) {
-      clearInterval(detectionIntervalRef.current);
-      detectionIntervalRef.current = null;
-    }
-    setIsDetecting(false);
-  };
-
-  // Release camera resources
-  const releaseCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop();
-      });
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  };
-
-  // Save emotion entry
-  const handleSaveEmotionEntry = async () => {
+  // ── Save ───────────────────────────────────────────────────────────────
+  const handleSave = async () => {
     if (!currentEmotions) {
-      setSaveError('No emotions detected. Please wait for detection to complete.');
+      setSaveError('Belum ada emosi terdeteksi. Tunggu sebentar.');
       return;
     }
-
     setIsSaving(true);
     setSaveError(null);
-    setSaveSuccess(false);
 
     try {
-      // Calculate dominant emotion
-      const dominantEmotion = getDominantEmotion(currentEmotions);
-
-      // Prepare request payload
       const payload: CreateEmotionEntryRequest = {
-        dominantEmotion,
+        dominantEmotion: getDominantEmotion(currentEmotions),
         emotionScores: currentEmotions,
-        timestamp: new Date()
       };
+      const response = await apiClient.post('/api/emotions', payload);
+      const entry: EmotionEntry = response.data;
 
-      // Call backend API
-      const response = await apiClient.post<EmotionEntry>('/api/emotions', payload);
+      runningRef.current = false;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
 
-      // Stop detection loop
-      stopDetection();
-
-      // Release camera resources
-      releaseCamera();
-
-      // Show success feedback
       setSaveSuccess(true);
       setIsSaving(false);
-
-      // Notify parent component or redirect
-      if (onSaveSuccess) {
-        onSaveSuccess(response.data);
-      } else {
-        router.push(`/journal?id=${response.data.id}`);
-      }
+      onSaveSuccess ? onSaveSuccess(entry) : router.push(`/journal?id=${entry.id}`);
     } catch (err) {
-      console.error('Failed to save emotion entry:', err);
-      
-      let errorMessage = 'Failed to save emotion entry. Please try again.';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-
-      setSaveError(errorMessage);
+      console.error('Save error:', err);
+      setSaveError('Gagal menyimpan. Pastikan sudah login dan backend berjalan.');
       setIsSaving(false);
     }
   };
 
+  // ── Derived UI state ───────────────────────────────────────────────────
+  const isDetecting = status === 'detecting';
+  const showCameraFeed = permissionState === 'granted';
+  const showOverlay = !currentEmotions || noFaceDetected;
+  const dominant = currentEmotions ? getDominantEmotion(currentEmotions) : 'neutral';
+  const recommendation = getRecommendation(dominant);
+  const display: EmotionScores = currentEmotions ?? {
+    happy: 0, sad: 0, angry: 0, fearful: 0, disgusted: 0, surprised: 0, neutral: 1,
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col lg:flex-row gap-6 w-full items-center">
-      {/* Left Column: Video */}
-      <div className="relative w-full lg:flex-1 aspect-video bg-slate-900 rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/10">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-cover mirror absolute inset-0"
-        />
-        
-        {/* Loading Overlay */}
-        {isInitializing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-10">
-            <div className="text-center text-white">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-500 mx-auto mb-4"></div>
-              <p className="font-medium text-slate-200">Memuat model AI...</p>
-            </div>
-          </div>
-        )}
+    <div className="w-full flex flex-col lg:flex-row gap-6 items-stretch">
 
-        {/* Permission Prompt Overlay */}
-        {permissionState === 'prompt' && modelsLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-10">
-            <div className="text-center text-white p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-              <div className="text-4xl mb-3">📷</div>
-              <p className="font-medium text-slate-200">Meminta akses kamera...</p>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* ── Left: Camera ─────────────────────────────────────────────── */}
+      <div className="flex-1 min-w-0 flex flex-col gap-4">
+        <div
+          className="relative w-full rounded-2xl overflow-hidden shadow-xl bg-slate-900"
+          style={{ minHeight: '320px', aspectRatio: '4/3' }}
+        >
+          {/* Video element — always in DOM so ref stays valid */}
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showCameraFeed ? 'opacity-100' : 'opacity-0'}`}
+            style={{ transform: 'scaleX(-1)' }}
+          />
 
-      {/* Right Column: Status & Results */}
-      <div className="w-full lg:flex-1 flex flex-col gap-4">
-        {/* Status Indicator */}
-        {permissionState === 'granted' && !error && (
-          <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-2xl shadow-sm">
-            <div className="relative flex h-3 w-3">
-               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-               <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </div>
-            <span className="text-sm font-semibold text-slate-700">Kamera Aktif</span>
-            {isDetecting && <span className="text-sm text-slate-500 font-medium ml-2 border-l pl-3 border-slate-200">Mendeteksi emosi...</span>}
-          </div>
-        )}
-
-        {/* Error Messages */}
-        {error && (
-          <div className="w-full p-4 bg-red-50 border border-red-200 rounded-2xl shadow-sm">
-            <div className="flex items-start gap-3">
-              <span className="text-red-500 mt-0.5 text-xl">⚠️</span>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-red-800">Kamera Eror</h3>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
-                {permissionState === 'denied' && (
-                  <div className="text-sm text-red-600 mt-3 p-3 bg-red-100/50 rounded-lg">
-                    <p className="font-semibold mb-1">Cara memperbaiki:</p>
-                    <ol className="list-decimal pl-4 space-y-1">
-                      <li>Klik ikon kamera di bilah URL browser Anda</li>
-                      <li>Pilih "Izinkan" untuk akses kamera</li>
-                      <li>Segarkan halaman ini</li>
-                    </ol>
+          {/* Overlay: permission / loading screens */}
+          {!showCameraFeed && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 p-8 text-center">
+              {status === 'error' ? (
+                <>
+                  <span className="text-5xl">⚠️</span>
+                  <p className="text-red-300 text-sm font-semibold max-w-xs">{error}</p>
+                </>
+              ) : status === 'loading_model' || status === 'camera_starting' ? (
+                <>
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-400 border-t-transparent" />
+                  <p className="text-slate-300 text-sm font-medium max-w-xs">
+                    {status === 'camera_starting' ? 'Membuka kamera...' : loadingStep}
+                  </p>
+                </>
+              ) : status === 'ready' ? (
+                <>
+                  <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center text-4xl">
+                    📷
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Save Error Message */}
-        {saveError && (
-          <div className="w-full p-4 bg-red-50 border border-red-200 rounded-2xl shadow-sm">
-            <div className="flex items-start gap-3">
-              <span className="text-red-500 text-xl mt-0.5">❌</span>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-red-800">Gagal Menyimpan</h3>
-                <p className="text-sm text-red-700 mt-1">{saveError}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Save Success Message */}
-        {saveSuccess && (
-          <div className="w-full p-4 bg-emerald-50 border border-emerald-200 rounded-2xl shadow-sm">
-            <div className="flex items-start gap-3">
-              <span className="text-emerald-500 text-xl mt-0.5">✅</span>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-emerald-800">Berhasil!</h3>
-                <p className="text-sm text-emerald-700 mt-1">
-                  Data emosi Anda berhasil disimpan. Kamera telah dimatikan.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Real-time Emotion Display - Always rendered to prevent height jumps */}
-        {(() => {
-          const fallbackEmotions: EmotionScores = { happy: 0, sad: 0, angry: 0, fearful: 0, disgusted: 0, surprised: 0, neutral: 1 };
-          const displayEmotions = currentEmotions || fallbackEmotions;
-          const showOverlay = !currentEmotions || noFaceDetected;
-          const dominantMode = getDominantEmotion(displayEmotions);
-          
-          const getRecommendation = (emotion: EmotionType) => {
-            switch (emotion) {
-              case 'happy':
-                return {
-                  spectrum: 'Sangat Positif',
-                  diagnosis: 'Kesiapan Peningkatan Koping',
-                  action: 'Sharing: Motivasi untuk menebar kebaikan kepada sesama.',
-                  icon: '🌟',
-                  color: 'bg-amber-50 text-amber-900 border-amber-200',
-                  badge: 'bg-amber-100 text-amber-800'
-                };
-              case 'surprised':
-                return {
-                  spectrum: 'Positif',
-                  diagnosis: 'Kesiapan Peningkatan Konsep Diri',
-                  action: 'Edukasi: Mempertahankan pola hidup sehat dan manajemen waktu.',
-                  icon: '💡',
-                  color: 'bg-emerald-50 text-emerald-900 border-emerald-200',
-                  badge: 'bg-emerald-100 text-emerald-800'
-                };
-              case 'neutral':
-                return {
-                  spectrum: 'Netral',
-                  diagnosis: 'Pemeliharaan Kesehatan Tidak Efektif (Risiko)',
-                  action: 'Aktivitas Fisik: Peregangan ringan dan hidrasi (minum air putih).',
-                  icon: '💧',
-                  color: 'bg-slate-50 text-slate-800 border-slate-200',
-                  badge: 'bg-slate-200 text-slate-700'
-                };
-              case 'sad':
-              case 'fearful':
-                return {
-                  spectrum: 'Negatif',
-                  diagnosis: 'Ansietas / Duka Cita',
-                  action: 'Relaksasi: Teknik nafas dalam.',
-                  icon: '😮‍💨',
-                  color: 'bg-blue-50 text-blue-900 border-blue-200',
-                  badge: 'bg-blue-100 text-blue-800'
-                };
-              case 'angry':
-              case 'disgusted':
-                return {
-                  spectrum: 'Sangat Negatif',
-                  diagnosis: 'Risiko Perilaku Kekerasan / Keputusasaan',
-                  action: 'Manajemen Marah: Mengubah posisi tubuh, atau konsultasi ahli.',
-                  icon: '🛑',
-                  color: 'bg-rose-50 text-rose-900 border-rose-200',
-                  badge: 'bg-rose-100 text-rose-800'
-                };
-              default:
-                return null;
-            }
-          };
-
-          const recommendation = getRecommendation(dominantMode);
-
-          return (
-            <div className="relative w-full flex flex-col gap-4">
-              {/* Overlay for face not found */}
-              {showOverlay && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[3px] rounded-2xl transition-all duration-300">
-                  {noFaceDetected && isDetecting ? (
-                    <div className="bg-amber-100 text-amber-800 px-6 py-4 rounded-full shadow-xl border border-amber-300 flex items-center gap-3 animate-bounce">
-                      <span className="text-2xl">🚨</span>
-                      <span className="font-extrabold tracking-wide">Wajah tidak terdeteksi dalam frame</span>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-800 text-white px-6 py-4 rounded-full shadow-xl flex items-center gap-3">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      <span className="font-bold tracking-wide">Menunggu pemindaian...</span>
-                    </div>
-                  )}
-                </div>
+                  <div>
+                    <h3 className="text-white font-bold text-xl mb-1">Model Siap</h3>
+                    <p className="text-slate-400 text-sm">Aktifkan kamera untuk mulai deteksi emosi real-time</p>
+                  </div>
+                  <button
+                    onClick={startCamera}
+                    className="px-8 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95"
+                  >
+                    Mulai Kamera
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="animate-spin rounded-full h-10 w-10 border-4 border-violet-400 border-t-transparent" />
+                  <p className="text-slate-400 text-sm">Mempersiapkan...</p>
+                </>
               )}
+            </div>
+          )}
 
-              <div className={`w-full p-6 bg-white border border-slate-100 rounded-2xl shadow-md flex-1 flex flex-col transition-opacity duration-300 ${showOverlay ? 'opacity-40 grayscale-[50%]' : 'opacity-100'}`}>
-                <h3 className="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
-                  <span>🧠</span> Analisis Emosional
-                </h3>
-
-                {/* Dominant Emotion */}
-                <div className="mb-6 p-4 rounded-xl border transition-colors duration-300" style={{ backgroundColor: `${EMOTION_COLORS[dominantMode]}10`, borderColor: `${EMOTION_COLORS[dominantMode]}30` }}>
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Emosi Dominan</div>
-                  <div className="text-3xl font-extrabold capitalize transition-colors duration-300" style={{ color: EMOTION_COLORS[dominantMode] }}>
-                    {EMOTION_LABELS[dominantMode]}
-                  </div>
-                </div>
-
-                {/* All Emotion Scores */}
-                <div className="space-y-4 flex-1 mb-6">
-                  {[
-                    { label: 'Sangat Positif', score: displayEmotions.happy, color: EMOTION_COLORS.happy, isDominant: ['happy'].includes(dominantMode) },
-                    { label: 'Positif', score: displayEmotions.surprised, color: EMOTION_COLORS.surprised, isDominant: ['surprised'].includes(dominantMode) },
-                    { label: 'Netral', score: displayEmotions.neutral, color: EMOTION_COLORS.neutral, isDominant: ['neutral'].includes(dominantMode) },
-                    { label: 'Negatif', score: Math.min(1, displayEmotions.sad + displayEmotions.fearful), color: EMOTION_COLORS.sad, isDominant: ['sad', 'fearful'].includes(dominantMode) },
-                    { label: 'Sangat Negatif', score: Math.min(1, displayEmotions.angry + displayEmotions.disgusted), color: EMOTION_COLORS.angry, isDominant: ['angry', 'disgusted'].includes(dominantMode) },
-                  ].map((item) => {
-                    const percentage = Math.round(item.score * 100);
-
-                    return (
-                      <div key={item.label} className="group relative">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className={`text-sm transition-colors duration-300 ${item.isDominant ? 'font-bold text-slate-900' : 'font-medium text-slate-500 group-hover:text-slate-700'}`}>
-                            {item.label}
-                          </span>
-                          <span className={`text-sm transition-colors duration-300 ${item.isDominant ? 'font-extrabold text-slate-800' : 'font-semibold text-slate-400'}`}>
-                            {percentage}%
-                          </span>
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-300 ease-out"
-                            style={{
-                              width: `${percentage}%`,
-                              backgroundColor: item.color
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Clinical Recommendations */}
-                {recommendation && (
-                  <div className={`p-4 rounded-xl border transition-all duration-300 ${recommendation.color}`}>
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="font-bold flex items-center gap-2">
-                        <span>{recommendation.icon}</span> Rekomendasi Klinis
-                      </h4>
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${recommendation.badge}`}>
-                        {recommendation.spectrum}
-                      </span>
-                    </div>
-                    
-                    <div className="mb-2">
-                      <div className="text-xs font-bold uppercase tracking-wider opacity-70 mb-0.5">Diagnosa Keperawatan (SDKI)</div>
-                      <div className="text-sm font-semibold">{recommendation.diagnosis}</div>
-                    </div>
-                    
-                    <div>
-                      <div className="text-xs font-bold uppercase tracking-wider opacity-70 mb-0.5">Tindakan Kesehatan (Klinis/SIKI)</div>
-                      <div className="text-sm font-semibold">{recommendation.action}</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Save Button */}
-                {!saveSuccess && (
-                  <div className="mt-8 pt-4 border-t border-slate-100">
-                    <button
-                      onClick={handleSaveEmotionEntry}
-                      disabled={isSaving || showOverlay}
-                      className="w-full py-4 px-6 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                      {isSaving ? (
-                        <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                          <span>Menyimpan ke Jurnal...</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                          </svg>
-                          <span>Simpan Emosi Saat Ini</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
+          {/* No-face warning */}
+          {showCameraFeed && noFaceDetected && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="bg-amber-100/90 text-amber-800 px-5 py-2.5 rounded-full shadow-xl border border-amber-300 flex items-center gap-2 animate-bounce backdrop-blur-sm">
+                <span>🚨</span>
+                <span className="font-bold text-sm">Wajah tidak terdeteksi</span>
               </div>
             </div>
-          );
-        })()}
+          )}
+
+          {/* Live indicator */}
+          {showCameraFeed && isDetecting && !noFaceDetected && currentEmotions && (
+            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
+              <span className="text-white text-xs font-semibold">MediaPipe Live</span>
+            </div>
+          )}
+        </div>
+
+        {/* Error messages */}
+        {status !== 'error' && error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+            <p className="text-sm text-red-700">⚠️ {error}</p>
+          </div>
+        )}
+        {saveError && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+            <p className="text-sm text-red-700">❌ {saveError}</p>
+          </div>
+        )}
+        {saveSuccess && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <p className="text-sm text-emerald-700">✅ Data emosi berhasil disimpan. Menuju Jurnal...</p>
+          </div>
+        )}
       </div>
 
-      <style jsx>{`
-        .mirror {
-          transform: scaleX(-1);
-        }
-      `}</style>
+      {/* ── Right: Analysis panel ────────────────────────────────────── */}
+      <div className="relative w-full lg:w-80">
+        {showOverlay && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-2xl">
+            <div className="bg-slate-800 text-white px-5 py-3 rounded-full shadow-xl flex items-center gap-3">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              <span className="font-bold text-sm">Menunggu pemindaian...</span>
+            </div>
+          </div>
+        )}
+
+        <div className={`p-6 bg-white border border-slate-100 rounded-2xl shadow-md flex flex-col gap-5 transition-opacity duration-300 ${showOverlay ? 'opacity-40 grayscale-[50%]' : ''}`}>
+          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">🧠 Analisis Emosional</h3>
+
+          {/* Dominant badge */}
+          <div
+            className="p-4 rounded-xl border"
+            style={{ backgroundColor: `${EMOTION_COLORS[dominant]}15`, borderColor: `${EMOTION_COLORS[dominant]}40` }}
+          >
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Emosi Dominan</div>
+            <div className="text-3xl font-extrabold capitalize" style={{ color: EMOTION_COLORS[dominant] }}>
+              {EMOTION_LABELS[dominant]}
+            </div>
+          </div>
+
+          {/* 5-spectrum bars */}
+          <div className="space-y-3">
+            {[
+              { label: 'Sangat Positif', score: display.happy, color: EMOTION_COLORS.happy, active: ['happy'].includes(dominant) },
+              { label: 'Positif', score: display.surprised, color: EMOTION_COLORS.surprised, active: ['surprised'].includes(dominant) },
+              { label: 'Netral', score: display.neutral, color: EMOTION_COLORS.neutral, active: dominant === 'neutral' },
+              { label: 'Negatif', score: Math.min(1, display.sad + display.fearful), color: EMOTION_COLORS.sad, active: ['sad', 'fearful'].includes(dominant) },
+              { label: 'Sangat Negatif', score: Math.min(1, display.angry + display.disgusted), color: EMOTION_COLORS.angry, active: ['angry', 'disgusted'].includes(dominant) },
+            ].map((item) => {
+              const pct = Math.round(item.score * 100);
+              return (
+                <div key={item.label}>
+                  <div className="flex justify-between mb-1">
+                    <span className={`text-sm ${item.active ? 'font-bold text-slate-900' : 'text-slate-500'}`}>{item.label}</span>
+                    <span className={`text-sm tabular-nums ${item.active ? 'font-extrabold text-slate-800' : 'text-slate-400'}`}>{pct}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, backgroundColor: item.color }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Recommendation */}
+          {recommendation && (
+            <div className={`p-4 rounded-xl border ${recommendation.color}`}>
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-sm font-bold flex items-center gap-1.5">{recommendation.icon} Rekomendasi Klinis</h4>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${recommendation.badge}`}>{recommendation.spectrum}</span>
+              </div>
+              <div className="mb-1.5">
+                <div className="text-xs font-bold uppercase tracking-wide opacity-60 mb-0.5">Diagnosa (SDKI)</div>
+                <div className="text-sm font-semibold">{recommendation.diagnosis}</div>
+              </div>
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wide opacity-60 mb-0.5">Tindakan (SIKI)</div>
+                <div className="text-sm font-semibold">{recommendation.action}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Save button */}
+          {!saveSuccess && (
+            <button
+              onClick={handleSave}
+              disabled={isSaving || showOverlay || !isDetecting}
+              className="w-full py-3.5 px-6 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:-translate-y-0.5"
+            >
+              {isSaving ? (
+                <><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /><span>Menyimpan...</span></>
+              ) : (
+                <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg><span>Simpan ke Jurnal</span></>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
