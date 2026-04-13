@@ -12,6 +12,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/', label: 'Beranda' },
+    { href: '/dashboard', label: 'Dasbor' },
     { href: '/journal', label: 'Jurnal' },
   ];
 
