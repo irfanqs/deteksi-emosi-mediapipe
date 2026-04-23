@@ -114,7 +114,7 @@ function getRecommendation(emotion: EmotionType) {
       return {
         spectrum: 'Sangat Positif',
         diagnosis: 'Kesiapan Peningkatan Koping',
-        action: 'Sharing: Motivasi untuk menebar kebaikan kepada sesama.',
+        action: 'Sharing: Motivasi untuk menebar kebaikan kepada sesama. Spiritual: Mensyukuri nikmat Tuhan.',
         icon: '🌟',
         color: 'bg-amber-50 text-amber-900 border-amber-200',
         badge: 'bg-amber-100 text-amber-800',
@@ -123,7 +123,7 @@ function getRecommendation(emotion: EmotionType) {
       return {
         spectrum: 'Positif',
         diagnosis: 'Kesiapan Peningkatan Konsep Diri',
-        action: 'Edukasi: Mempertahankan pola hidup sehat dan manajemen waktu.',
+        action: 'Edukasi: Mempertahankan pola hidup sehat dan manajemen waktu. Spiritual: Merenungkan dan mengambil hikmah dari keadaan sekitar.',
         icon: '💡',
         color: 'bg-emerald-50 text-emerald-900 border-emerald-200',
         badge: 'bg-emerald-100 text-emerald-800',
@@ -132,7 +132,7 @@ function getRecommendation(emotion: EmotionType) {
       return {
         spectrum: 'Netral',
         diagnosis: 'Pemeliharaan Kesehatan Tidak Efektif (Risiko)',
-        action: 'Aktivitas Fisik: Peregangan ringan dan hidrasi (minum air putih).',
+        action: 'Aktivitas Fisik: Peregangan ringan dan hidrasi (minum air putih). Spiritual: Membaca zikir atau afirmasi positif.',
         icon: '💧',
         color: 'bg-slate-50 text-slate-800 border-slate-200',
         badge: 'bg-slate-200 text-slate-700',
@@ -142,7 +142,7 @@ function getRecommendation(emotion: EmotionType) {
       return {
         spectrum: 'Negatif',
         diagnosis: 'Ansietas / Duka Cita',
-        action: 'Relaksasi: Teknik nafas dalam.',
+        action: 'Relaksasi: Teknik nafas dalam. Spiritual: Mendengarkan lantunan ayat suci / instrumen doa, dan berserah diri untuk ketenangan Hati.',
         icon: '😮‍💨',
         color: 'bg-blue-50 text-blue-900 border-blue-200',
         badge: 'bg-blue-100 text-blue-800',
@@ -152,7 +152,7 @@ function getRecommendation(emotion: EmotionType) {
       return {
         spectrum: 'Sangat Negatif',
         diagnosis: 'Risiko Perilaku Kekerasan / Keputusasaan',
-        action: 'Manajemen Marah: Mengubah posisi tubuh, atau konsultasi ahli.',
+        action: 'Manajemen Marah: Mengubah posisi tubuh, mengambil air wudhu (cuci muka), atau konsultasi ahli. Spiritual: Banyak beristighfar dan tarik nafas pelan.',
         icon: '🛑',
         color: 'bg-rose-50 text-rose-900 border-rose-200',
         badge: 'bg-rose-100 text-rose-800',
