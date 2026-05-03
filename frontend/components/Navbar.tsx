@@ -44,8 +44,8 @@ export default function Navbar() {
                 href={link.href}
                 className={`${
                   pathname === link.href
-                    ? 'text-violet-600 font-semibold'
-                    : 'text-gray-600 hover:text-violet-600'
+                    ? 'text-emerald-700 font-semibold'
+                    : 'text-gray-600 hover:text-emerald-700'
                 } transition-colors duration-200 text-sm font-medium`}
               >
                 {link.label}
@@ -64,7 +64,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/auth/signin"
-                className="px-6 py-2.5 bg-gradient-to-r from-violet-600 hover:from-violet-500 to-fuchsia-600 hover:to-fuchsia-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl hover:shadow-violet-500/30 transition-all transform hover:-translate-y-0.5"
+                className="px-6 py-2.5 bg-gradient-to-r from-emerald-700 hover:from-emerald-600 to-teal-700 hover:to-teal-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl hover:shadow-emerald-500/30 transition-all transform hover:-translate-y-0.5"
               >
                 Login
               </Link>
@@ -75,7 +75,7 @@ export default function Navbar() {
           <div className="md:hidden flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-700 hover:text-violet-600 focus:outline-none p-2 rounded-lg hover:bg-violet-50 transition-colors"
+              className="text-gray-700 hover:text-emerald-700 focus:outline-none p-2 rounded-lg hover:bg-emerald-50 transition-colors"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 {isOpen ? (
@@ -99,8 +99,8 @@ export default function Navbar() {
               onClick={() => setIsOpen(false)}
               className={`block px-4 py-3 rounded-xl text-base font-medium transition-colors ${
                 pathname === link.href
-                  ? 'text-violet-700 bg-violet-50 border border-violet-100'
-                  : 'text-gray-600 hover:text-violet-700 hover:bg-gray-50'
+                  ? 'text-emerald-700 bg-emerald-50 border border-emerald-100'
+                  : 'text-gray-600 hover:text-emerald-700 hover:bg-gray-50'
               }`}
             >
               {link.label}
@@ -119,7 +119,7 @@ export default function Navbar() {
             <Link
               href="/auth/signin"
               onClick={() => setIsOpen(false)}
-              className="block mt-4 px-4 py-3 text-center text-base font-medium bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl shadow-md active:scale-95 transition-transform"
+              className="block mt-4 px-4 py-3 text-center text-base font-medium bg-gradient-to-r from-emerald-700 to-teal-700 text-white rounded-xl shadow-md active:scale-95 transition-transform"
             >
               Login
             </Link>

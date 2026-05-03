@@ -454,7 +454,7 @@ export default function FaceScan({
                 </>
               ) : status === 'loading_model' || status === 'camera_starting' ? (
                 <>
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-400 border-t-transparent" />
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent" />
                   <p className="text-slate-300 text-sm font-medium max-w-xs">
                     {status === 'camera_starting' ? 'Membuka kamera...' : loadingStep}
                   </p>
@@ -470,14 +470,14 @@ export default function FaceScan({
                   </div>
                   <button
                     onClick={startCamera}
-                    className="px-8 py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95"
+                    className="px-8 py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95"
                   >
                     Mulai Kamera
                   </button>
                 </>
               ) : (
                 <>
-                  <div className="animate-spin rounded-full h-10 w-10 border-4 border-violet-400 border-t-transparent" />
+                  <div className="animate-spin rounded-full h-10 w-10 border-4 border-emerald-500 border-t-transparent" />
                   <p className="text-slate-400 text-sm">Mempersiapkan...</p>
                 </>
               )}
@@ -508,7 +508,7 @@ export default function FaceScan({
           {/* Dzikir Progres */}
           {showCameraFeed && isDetecting && !noFaceDetected && (
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-md px-6 py-3 rounded-2xl shadow-xl flex flex-col items-center border border-white/50 text-center animate-pulse min-w-[280px]">
-              <span className="text-[10px] font-bold text-violet-600 uppercase tracking-widest mb-1 flex items-center gap-1">
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-1 flex items-center gap-1">
                 <span>📿</span> Dzikir Progres
               </span>
               <span className="text-sm font-bold text-slate-800 transition-all duration-500 ease-in-out">

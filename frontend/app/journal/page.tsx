@@ -82,7 +82,7 @@ function JournalHistory({ onWrite }: { onWrite: () => void }) {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-400">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-violet-400 border-t-transparent" />
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-emerald-500 border-t-transparent" />
         <p className="text-sm font-medium">Memuat jurnal...</p>
       </div>
     );
@@ -95,7 +95,7 @@ function JournalHistory({ onWrite }: { onWrite: () => void }) {
         {error.includes('login') && (
           <Link
             href="/auth/signin"
-            className="inline-block bg-violet-600 text-white font-bold px-6 py-2.5 rounded-xl hover:bg-violet-500 transition"
+            className="inline-block bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl hover:bg-emerald-600 transition"
           >
             Login Sekarang
           </Link>
@@ -114,7 +114,7 @@ function JournalHistory({ onWrite }: { onWrite: () => void }) {
         </div>
         <Link
           href="/"
-          className="bg-violet-600 hover:bg-violet-500 text-white font-bold px-6 py-3 rounded-xl transition shadow-lg"
+          className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl transition shadow-lg"
         >
           🔍 Mulai Pemindaian
         </Link>
@@ -198,7 +198,7 @@ function JournalContent() {
             {view === 'list' && (
               <Link
                 href="/"
-                className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition shadow"
+                className="bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition shadow"
               >
                 + Pemindaian Baru
               </Link>
@@ -237,7 +237,7 @@ function JournalContent() {
             <p className="text-amber-700 text-sm mb-4">
               Lakukan pemindaian wajah terlebih dahulu agar jurnal terhubung dengan data emosi Anda.
             </p>
-            <Link href="/" className="inline-block bg-violet-600 text-white font-bold px-6 py-2.5 rounded-xl hover:bg-violet-500 transition">
+            <Link href="/" className="inline-block bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl hover:bg-emerald-600 transition">
               Mulai Pemindaian
             </Link>
           </div>
@@ -262,7 +262,7 @@ function JournalContent() {
               </button>
               <Link
                 href="/"
-                className="bg-violet-600 hover:bg-violet-500 text-white font-bold px-5 py-2.5 rounded-xl transition"
+                className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-5 py-2.5 rounded-xl transition"
               >
                 Pemindaian Baru
               </Link>
@@ -278,7 +278,7 @@ export default function JournalPage() {
   return (
     <Suspense fallback={
       <div className="flex-grow flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-violet-400 border-t-transparent" />
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-emerald-500 border-t-transparent" />
       </div>
     }>
       <JournalContent />
