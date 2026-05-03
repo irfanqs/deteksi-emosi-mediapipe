@@ -189,6 +189,15 @@ export default function FaceScan({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const dzikirList = [
+    "Subhanallah (Maha Suci Allah)",
+    "Alhamdulillah (Segala Puji bagi Allah)",
+    "Allahu Akbar (Allah Maha Besar)",
+    "Laa ilaaha illallah (Tiada Tuhan selain Allah)",
+    "Astaghfirullah (Aku memohon ampun kepada Allah)"
+  ];
+  const [dzikirIndex, setDzikirIndex] = useState(0);
+
   // ── Step 1: Load MediaPipe model on mount ──────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -250,6 +259,10 @@ export default function FaceScan({
     try {
       setStatus('camera_starting');
       setError(null);
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Browser ini tidak mendukung akses kamera, atau Anda mengakses melalui HTTP (bukan HTTPS). Gunakan HTTPS atau localhost untuk menggunakan kamera.');
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
@@ -322,6 +335,16 @@ export default function FaceScan({
     };
   }, [status, onEmotionDetected]);
 
+  // ── Dzikir Progres Loop ────────────────────────────────────────────────
+  useEffect(() => {
+    if (status === 'detecting' && !noFaceDetected) {
+      const interval = setInterval(() => {
+        setDzikirIndex((prev) => (prev + 1) % dzikirList.length);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [status, noFaceDetected, dzikirList.length]);
+
   // ── Cleanup on unmount ─────────────────────────────────────────────────
   useEffect(() => {
     return () => {
@@ -355,9 +378,10 @@ export default function FaceScan({
       setSaveSuccess(true);
       setIsSaving(false);
       onSaveSuccess ? onSaveSuccess(entry) : router.push(`/journal?id=${entry.id}`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Save error:', err);
-      setSaveError('Gagal menyimpan. Pastikan sudah login dan backend berjalan.');
+      const errorMessage = err.response?.data?.error || 'Gagal menyimpan.';
+      setSaveError(`${errorMessage} (Pastikan sudah login dan backend berjalan.)`);
       setIsSaving(false);
     }
   };
@@ -391,6 +415,34 @@ export default function FaceScan({
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${showCameraFeed ? 'opacity-100' : 'opacity-0'}`}
             style={{ transform: 'scaleX(-1)' }}
           />
+
+          {/* Face Outline Overlay */}
+          {showCameraFeed && status === 'detecting' && (
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              <svg width="200" height="280" viewBox="0 0 200 280" fill="none" xmlns="http://www.w3.org/2000/svg" className={`transition-all duration-300 ${noFaceDetected ? 'opacity-30' : 'opacity-60'}`}>
+                <ellipse cx="100" cy="140" rx="90" ry="120" stroke={noFaceDetected ? '#ef4444' : '#10b981'} strokeWidth="4" strokeDasharray="10 10"/>
+                <path d="M 50 140 L 150 140" stroke={noFaceDetected ? '#ef4444' : '#10b981'} strokeWidth="1" strokeDasharray="5 5" opacity="0.5"/>
+                <path d="M 100 50 L 100 230" stroke={noFaceDetected ? '#ef4444' : '#10b981'} strokeWidth="1" strokeDasharray="5 5" opacity="0.5"/>
+              </svg>
+            </div>
+          )}
+
+          {/* Lighting Indicator */}
+          {showCameraFeed && status === 'detecting' && (
+            <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-full z-10">
+              {noFaceDetected ? (
+                <>
+                  <span className="text-xs">🌑</span>
+                  <span className="text-red-400 text-xs font-semibold">Cahaya Kurang</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs">☀️</span>
+                  <span className="text-emerald-400 text-xs font-semibold">Cahaya Baik</span>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Overlay: permission / loading screens */}
           {!showCameraFeed && (
@@ -450,6 +502,18 @@ export default function FaceScan({
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
               </span>
               <span className="text-white text-xs font-semibold">MediaPipe Live</span>
+            </div>
+          )}
+
+          {/* Dzikir Progres */}
+          {showCameraFeed && isDetecting && !noFaceDetected && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-md px-6 py-3 rounded-2xl shadow-xl flex flex-col items-center border border-white/50 text-center animate-pulse min-w-[280px]">
+              <span className="text-[10px] font-bold text-violet-600 uppercase tracking-widest mb-1 flex items-center gap-1">
+                <span>📿</span> Dzikir Progres
+              </span>
+              <span className="text-sm font-bold text-slate-800 transition-all duration-500 ease-in-out">
+                {dzikirList[dzikirIndex]}
+              </span>
             </div>
           )}
         </div>

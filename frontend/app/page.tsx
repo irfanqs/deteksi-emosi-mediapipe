@@ -5,16 +5,7 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <main className="flex flex-col min-h-screen bg-[#FAFAFD] text-slate-800 font-sans selection:bg-fuchsia-200">
-      {/* ── Background Gradients (Light Mode Soft Mesh) ── */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-white">
-        {/* Soft pastel mesh */}
-        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-violet-200/60 blur-[100px] mix-blend-multiply" />
-        <div className="absolute top-[20%] right-[-10%] w-[40vw] h-[40vw] rounded-full bg-fuchsia-200/50 blur-[90px] mix-blend-multiply" />
-        <div className="absolute bottom-[-20%] left-[20%] w-[60vw] h-[60vw] rounded-full bg-blue-100/70 blur-[110px] mix-blend-multiply" />
-        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.02] filter invert" />
-      </div>
-
+    <main className="flex-grow flex flex-col font-sans">
       {/* ── Hero Section ── */}
       <section className="relative z-10 pt-28 md:pt-40 pb-20 md:pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/60 border border-white backdrop-blur-md text-sm font-bold text-fuchsia-600 mb-8 mx-auto mt-4 shadow-sm shadow-fuchsia-100">
@@ -26,12 +17,12 @@ export default function Home() {
         </div>
         
         <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[5rem] font-extrabold tracking-tight mb-8 leading-[1.1] text-slate-900 drop-shadow-sm">
-          Kenali <span className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600">Emosimu.</span>
-          <br className="hidden md:block" /> Kuasai Pikiranmu.
+          Kenali <span className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600">Hatimu.</span>
+          <br className="hidden md:block" /> Tenangkan Jiwamu.
         </h1>
         
         <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
-          Deteksi kondisi mental melalui ekspresi wajah secara <strong className="text-slate-800">real-time</strong>. Intervensi Islami & Klinis, dan pelacakan kebiasaan — semuanya terenkripsi di perangkatmu.
+          Deteksi kondisi emosi melalui ekspresi wajah secara <strong className="text-slate-800">real-time</strong>. Dapatkan rekomendasi berlandaskan nilai Islami & pedoman klinis untuk ketenangan batin Anda.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -56,8 +47,8 @@ export default function Home() {
       <section id="scan-section" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6 drop-shadow-sm">Pemindai AI Pintar</h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-lg font-medium">Analisis 52 otot wajah dalam mikrodetik menggunakan Google MediaPipe. 100% lokal, privasi terjamin.</p>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6 drop-shadow-sm">Muhasabah Emosi & Batin</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-lg font-medium">Teknologi AI menganalisis 52 titik wajah untuk membantu mengenali suasana hatimu. 100% aman, data diproses lokal, dan senantiasa menjaga privasi Anda.</p>
           </div>
           
           <div className="max-w-5xl mx-auto relative rounded-[2.5rem] bg-white/70 backdrop-blur-xl border border-white shadow-[0_30px_100px_-15px_rgba(0,0,0,0.08)] overflow-hidden">
@@ -79,15 +70,15 @@ export default function Home() {
       <section className="relative z-10 py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6 drop-shadow-sm">Fitur Kesejahteraan</h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-lg font-medium">Semua yang Anda butuhkan untuk melacak dan merawat kesehatan mental Anda setiap harinya.</p>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-slate-900 mb-6 drop-shadow-sm">Fitur Ketenangan Jiwa</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-lg font-medium">Panduan dan alat bantu holistik untuk merawat kesehatan mental dan spiritual Anda setiap hari.</p>
           </div>
         
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {[
-              { icon: '✨', title: 'Analisis Real-time', desc: 'Pemindaian instan dengan presisi klinis langsung dari browser Anda tanpa menyimpan video.', color: 'from-fuchsia-50 to-white', border: 'border-fuchsia-100', iconBg: 'bg-fuchsia-100' },
-              { icon: '📓', title: 'Jurnal Mood', desc: 'Catat unek-unek harian Anda terhubung dengan persentase emosi sebagai rekam jejak pribadi.', color: 'from-violet-50 to-white', border: 'border-violet-100', iconBg: 'bg-violet-100' },
-              { icon: '🌱', title: 'Holistik & Spiritual', desc: 'Dapatkan rekomendasi medis berdasar Standar SDKI dan pendekatan nilai-nilai spiritual Islami.', color: 'from-indigo-50 to-white', border: 'border-indigo-100', iconBg: 'bg-indigo-100' }
+              { icon: '✨', title: 'Muhasabah Real-time', desc: 'Pemindaian instan untuk mengenali emosi dominan yang sedang Anda rasakan secara presisi.', color: 'from-fuchsia-50 to-white', border: 'border-fuchsia-100', iconBg: 'bg-fuchsia-100' },
+              { icon: '📓', title: 'Jurnal Perasaan', desc: 'Catat unek-unek harian Anda sebagai rekam jejak untuk lebih mengenali dan menata hati.', color: 'from-violet-50 to-white', border: 'border-violet-100', iconBg: 'bg-violet-100' },
+              { icon: '🌱', title: 'Holistik & Spiritual', desc: 'Dapatkan rekomendasi medis berdasar Standar SDKI yang disempurnakan dengan pendekatan spiritual Islami.', color: 'from-indigo-50 to-white', border: 'border-indigo-100', iconBg: 'bg-indigo-100' }
             ].map((f, i) => (
               <div key={i} className={`relative bg-white/60 backdrop-blur-xl rounded-[2rem] p-8 md:p-10 border border-white hover:${f.border} shadow-lg shadow-slate-200/40 transition-all duration-300 hover:-translate-y-1 group overflow-hidden`}>
                 <div className={`absolute inset-0 bg-gradient-to-b ${f.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
@@ -104,12 +95,6 @@ export default function Home() {
         </div>
       </section>
       
-      {/* ── Footer ── */}
-      <footer className="relative z-10 w-full py-10 text-slate-500 text-center border-t border-slate-200 bg-white/50 backdrop-blur-md">
-        <p className="text-sm sm:text-base font-medium px-4">
-          Dibuat dengan <span className="inline-block text-fuchsia-500 animate-pulse text-lg mx-1 align-middle">❤️</span> untuk kesehatan mental umat.
-        </p>
-      </footer>
     </main>
   );
 }

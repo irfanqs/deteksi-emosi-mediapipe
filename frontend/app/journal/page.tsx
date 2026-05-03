@@ -188,7 +188,7 @@ function JournalContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pt-32 pb-16 px-4">
+    <div className="flex-grow pt-8 sm:pt-12 pb-16 px-4">
       <div className="max-w-3xl mx-auto">
 
         {/* Header */}
@@ -277,7 +277,7 @@ function JournalContent() {
 export default function JournalPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="flex-grow flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-4 border-violet-400 border-t-transparent" />
       </div>
     }>

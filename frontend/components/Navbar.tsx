@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
+import { useSession, signOut } from 'next-auth/react';
 import Image from 'next/image';
 
 export default function Navbar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const { data: session } = useSession();
 
   const navLinks = [
     { href: '/', label: 'Beranda' },
@@ -49,12 +51,24 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <Link
-              href="/journal"
-              className="px-6 py-2.5 bg-gradient-to-r from-violet-600 hover:from-violet-500 to-fuchsia-600 hover:to-fuchsia-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl hover:shadow-violet-500/30 transition-all transform hover:-translate-y-0.5"
-            >
-              Lihat Jurnal
-            </Link>
+            {session ? (
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => signOut()}
+                  className="px-6 py-2 border border-slate-200 hover:border-red-300 text-slate-600 hover:text-red-600 bg-white hover:bg-red-50 rounded-xl font-medium transition-all shadow-sm"
+                  title="Keluar dari akun"
+                >
+                  Keluar
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/auth/signin"
+                className="px-6 py-2.5 bg-gradient-to-r from-violet-600 hover:from-violet-500 to-fuchsia-600 hover:to-fuchsia-500 text-white rounded-xl font-medium shadow-lg hover:shadow-xl hover:shadow-violet-500/30 transition-all transform hover:-translate-y-0.5"
+              >
+                Login
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -92,13 +106,24 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          <Link
-            href="/journal"
-            onClick={() => setIsOpen(false)}
-            className="block mt-4 px-4 py-3 text-center text-base font-medium bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl shadow-md active:scale-95 transition-transform"
-          >
-            Lihat Jurnal
-          </Link>
+          {session ? (
+            <>
+              <button
+                onClick={() => { setIsOpen(false); signOut(); }}
+                className="block w-full mt-4 px-4 py-3 text-center text-base font-medium border border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-xl transition-colors"
+              >
+                Keluar
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/auth/signin"
+              onClick={() => setIsOpen(false)}
+              className="block mt-4 px-4 py-3 text-center text-base font-medium bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl shadow-md active:scale-95 transition-transform"
+            >
+              Login
+            </Link>
+          )}
         </div>
       </div>
     </nav>
