@@ -41,3 +41,4 @@ Thumbs.db
 backend/uploads/*
 !backend/uploads/.gitkeep
 .kiro/
+.claude/
