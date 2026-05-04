@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 
 interface DzikirItem {
   text: string;
@@ -119,6 +120,7 @@ interface CounterState {
 const TARGET = 100;
 
 export default function IslamicDzikir() {
+  const { status } = useSession();
   const defaultTab = useMemo(() => {
     const h = new Date().getHours();
     return h >= 5 && h < 16 ? 'pagi' : 'petang';
@@ -132,15 +134,26 @@ export default function IslamicDzikir() {
   const doneCount = list.filter((_, i) => checked[`${tab}-${i}`]).length;
   const progressPct = Math.round((doneCount / list.length) * 100);
 
+  const checkAuth = () => {
+    if (status !== 'authenticated') {
+      alert('Agar progress tersimpan, Anda harus login terlebih dahulu.');
+      return false;
+    }
+    return true;
+  };
+
   const toggle = (i: number) => {
+    if (!checkAuth()) return;
     const key = `${tab}-${i}`;
     setChecked(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const increment = (key: keyof CounterState) => {
+    if (!checkAuth()) return;
     setCounter(prev => ({ ...prev, [key]: Math.min(TARGET, prev[key] + 1) }));
   };
   const reset = (key: keyof CounterState) => {
+    if (!checkAuth()) return;
     setCounter(prev => ({ ...prev, [key]: 0 }));
   };
 

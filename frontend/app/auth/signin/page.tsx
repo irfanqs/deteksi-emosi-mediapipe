@@ -33,8 +33,8 @@ export default function SignInPage() {
         return;
       }
 
-      // Redirect to journal on success (since dashboard doesn't exist)
-      router.push("/journal");
+      // Redirect to dashboard on success (using window.location to strictly refresh state)
+      window.location.href = "/";
     } catch (err) {
       setError("Terjadi kesalahan sistem. Silakan coba lagi.");
       setIsLoading(false);
