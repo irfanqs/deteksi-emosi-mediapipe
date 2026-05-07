@@ -330,6 +330,7 @@ export default function MoodJournal({ emotionEntryId, onSaveSuccess, onCancel }:
             </div>
           ) : (
             <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photoUrl}
                 alt="Foto Jurnal"
